@@ -1,6 +1,6 @@
 {
   "name": "react-native-one-hand",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "One-hand mode for React Native: scales the entire app — including native modals, alerts and action sheets — and docks it into a bottom corner, within thumb's reach. iOS + Android.",
   "main": "src/index.ts",
   "types": "src/index.ts",

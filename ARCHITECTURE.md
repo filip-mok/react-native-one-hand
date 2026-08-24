@@ -505,6 +505,32 @@ H·(1−s)/2)`.
     dock with the app.) And windows belonging to **another activity of this process** are
     left alone entirely — see below.
 
+- **Foreign-thread windows are not touched.** A window's `ViewRootImpl` records the thread
+  that added it, and `checkThread()` throws `CalledFromWrongThreadException` for anything
+  that touches layout or window attributes from a different one. The docking pass runs on
+  the main thread (Choreographer), and nearly every window in an RN process is added from
+  there — but not all: `react-native-date-picker` 5.0.13 builds its dialog from React
+  Native's own `mqt_v_native` thread. Docking it kills the host app outright (verified
+  live on a Pixel 9 / API 36): the decor-background move below is the trigger, because
+  `DecorView.setBackgroundDrawable` cascades into
+  `dispatchWindowAttributesChanged → updateViewLayout → checkThread()`. Note the inverted
+  message — "Expected: mqt_v_native Calling: main" — the module is on the main thread and
+  the WINDOW is the foreign one.
+
+  Such windows are therefore skipped entirely (`View.getHandler()` reports the owning
+  thread once the view is attached; before attachment there is no `ViewRootImpl` to
+  offend, so the window is fair game and gets re-checked next frame). They render
+  full-size over the docked app: visually inconsistent, but fully interactive — and the
+  alternative, marshalling every mutation onto a foreign thread from a per-vsync loop,
+  would put the bookkeeping maps and `deactivate()`'s restore path into a data race in
+  every consumer app. A one-time warning naming both threads is logged in release builds
+  too, since the symptom is otherwise invisible.
+
+  One wrinkle the skip alone does not cover: a window discovered in the frame before it
+  attaches has no owning thread to read yet, so it passes the check and gets recorded. The
+  restore loops in `deactivate()` therefore re-check ownership — otherwise they would touch
+  it from the main thread on the way out, `DecorView.setBackground` and all.
+
 - **Foreign activity windows are not docked.** `WindowInspector` enumerates the whole
   PROCESS, so a second activity — `expo-video`'s fullscreen player, any native screen —
   lands in the list too. It is a different screen, not part of the docked app: docking it

@@ -224,6 +224,12 @@ The default downscale factor (`0.75`).
   is the common case, but entering split-screen or a foldable posture change does too (a
   controlled exit, mirroring the keyboard policy — a resize invalidates the native window
   geometry the mode relies on). Re-enter after rotating back to portrait.
+- **Android: dialogs built on React Native's own thread stay full-size.** A window may
+  only be modified from the thread that created it, and this library docks from the main
+  thread. Most dialogs are created there, but some libraries (e.g.
+  `react-native-date-picker`) build theirs on React Native's native-modules thread; those
+  are left untouched and render full-size over the docked app — interactive as usual, just
+  not scaled. A one-time warning naming the thread is logged when it happens.
 - **Android with 3-button navigation: the corner gesture is hard to hit.** The navigation
   bar is a separate system window that takes touches in the bottom ~48 dp for itself, so
   very little of the corner hot zone reaches the app. Everything else works normally in

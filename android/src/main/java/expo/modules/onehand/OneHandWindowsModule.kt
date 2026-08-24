@@ -74,6 +74,11 @@ import kotlin.math.roundToInt
  *   exposed backdrop) are caught by an `OnTouchListener` on the decor and emit
  *   `onDismissRequest` — the native side never mutates mode state itself.
  *
+ * - A window may only be modified from the thread that created it, and this pass runs on
+ *   the main thread. Windows built on another thread — some libraries show their `Dialog`
+ *   straight from a React Native module method, without hopping to the UI thread — are
+ *   therefore skipped entirely rather than docked; see [isOwnedByCurrentThread].
+ *
  * - Requires API 29 (Android 10). On older devices the module is inert (logs a warning).
  */
 class OneHandWindowsModule : Module() {
@@ -119,6 +124,9 @@ class OneHandWindowsModule : Module() {
 
   /** Floating windows whose reposition already failed once (warn-once bookkeeping). */
   private val floatingUpdateFailures = WeakHashMap<View, Boolean>()
+
+  /** Windows skipped for belonging to another thread (warn-once bookkeeping). */
+  private val foreignThreadRoots = WeakHashMap<View, Boolean>()
 
   /**
    * Floating windows whose card background we moved from the decor onto the scaled child
@@ -273,6 +281,22 @@ class OneHandWindowsModule : Module() {
   }
 
   /**
+   * Whether [this] window's view hierarchy may be mutated from the thread we are on.
+   *
+   * `ViewRootImpl` records the thread that added the window, and `checkThread()` rejects
+   * every layout or window-attribute change coming from another one. Almost all windows in
+   * a React Native process are added from the main thread this pass runs on — but not all:
+   * some libraries show their `Dialog` straight from a module method, on RN's own thread,
+   * and docking one of those killed the host app (see ARCHITECTURE.md, "Foreign-thread
+   * windows"). A view that has not attached yet has no `ViewRootImpl` to offend, so a null
+   * handler counts as ours; the next frame re-checks it.
+   */
+  private fun View.isOwnedByCurrentThread(): Boolean {
+    val looper = handler?.looper ?: return true
+    return looper.thread === Thread.currentThread()
+  }
+
+  /**
    * Undo anything done to a root that BECAME foreign (the tracked activity changed after
    * we scaled it). Normally a no-op; without it the next `setScale` would drop the root
    * from [scaledRoots] and that screen would stay shrunk forever. Mirrors deactivate()'s
@@ -343,6 +367,19 @@ class OneHandWindowsModule : Module() {
       val params = root.layoutParams as? WindowManager.LayoutParams ?: continue
       // TYPE_TOAST: system-positioned and short-lived — never scaled or moved.
       if (params.type == WindowManager.LayoutParams.TYPE_TOAST) continue
+      // Not ours to touch (see isOwnedByCurrentThread). Ordered before releaseForeignRoot,
+      // which resets alpha unconditionally and would trip checkThread() itself.
+      if (!root.isOwnedByCurrentThread()) {
+        if (foreignThreadRoots.put(root, true) == null) {
+          Log.w(
+            TAG,
+            "skipping ${root.javaClass.simpleName}: its view hierarchy belongs to thread " +
+              "'${root.handler?.looper?.thread?.name}', not '${Thread.currentThread().name}' — " +
+              "it stays full-size while docked (see ARCHITECTURE.md, \"Foreign-thread windows\").",
+          )
+        }
+        continue
+      }
       // A window of ANOTHER activity of this process (expo-video's fullscreen player, a
       // second native screen) is a different screen, not part of the docked app — leave
       // it alone and the mode survives underneath, like the separate-activity pickers.
@@ -872,6 +909,10 @@ class OneHandWindowsModule : Module() {
 
     for ((root, childRef) in scaledRoots) {
       val child = childRef.get() ?: continue
+      // Restore only what we own: a window discovered before it attached had no thread to
+      // read yet, so it can be recorded here and then dropped by the docking pass a frame
+      // later. Touching it now would trip the checkThread() the skip exists to avoid.
+      if (!root.isOwnedByCurrentThread()) continue
       child.animate().cancel()
       if (root === activityDecor) {
         child.animate()
@@ -887,6 +928,7 @@ class OneHandWindowsModule : Module() {
       }
     }
     for ((root, origin) in floatingOrigins) {
+      if (!root.isOwnedByCurrentThread()) continue
       // Never leave a window stuck invisible if the mode exits during the short
       // hidden-until-settled window.
       root.alpha = 1f
@@ -901,6 +943,7 @@ class OneHandWindowsModule : Module() {
     }
     for ((root, movedRef) in movedDecorBackground) {
       val moved = movedRef?.get() ?: continue
+      if (!root.isOwnedByCurrentThread()) continue
       (root as? ViewGroup)?.getChildAt(0)?.let {
         if (it.background === moved) it.background = null
       }
@@ -912,6 +955,7 @@ class OneHandWindowsModule : Module() {
     floatingPreMoveLocation.clear()
     floatingLastLocation.clear()
     floatingUpdateFailures.clear()
+    foreignThreadRoots.clear()
     touchListenerRoots.clear()
     movedDecorBackground.clear()
     removeBackdropAfterRestore()
