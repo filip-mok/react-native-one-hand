@@ -12,7 +12,7 @@ remains on screen — just smaller and closer to your thumb.
 
 <p align="center">
   <img
-    src="https://raw.githubusercontent.com/Filipmok-agh/react-native-one-hand/main/assets/demo.gif"
+    src="https://raw.githubusercontent.com/filip-mok/react-native-one-hand/main/assets/demo.gif"
     alt="One-hand mode on iOS: the app docks into the bottom-right corner; an Alert, a bottom sheet, the text-selection toolbar and the share sheet all dock with it, then the app switches to the left corner and exits the mode."
     width="280"
   />
@@ -21,7 +21,7 @@ remains on screen — just smaller and closer to your thumb.
 <p align="center">
   <sub>
     Recorded in the
-    <a href="https://github.com/Filipmok-agh/react-native-one-hand-example">example app</a>.
+    <a href="https://github.com/filip-mok/react-native-one-hand-example">example app</a>.
   </sub>
 </p>
 
@@ -265,7 +265,7 @@ here; the suite substitutes its own stand-ins (`src/__mocks__`).
 
 Everything below the JS layer — the window transforms themselves, native overlays docking
 with the app, edit-menu placement — needs a real build, and the
-[example app](https://github.com/Filipmok-agh/react-native-one-hand-example) is the
+[example app](https://github.com/filip-mok/react-native-one-hand-example) is the
 fixture for it. Its **Overlays** and **Widgets** tabs collect the awkward cases —
 `ActionSheetIOS` and a separate banner window on Overlays; an anchored selection toolbar
 and a `DateTimePicker` dialog on Widgets.

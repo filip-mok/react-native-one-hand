@@ -1,6 +1,6 @@
 {
   "name": "react-native-one-hand",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "One-hand mode for React Native: scales the entire app — including native modals, alerts and action sheets — and docks it into a bottom corner, within thumb's reach. iOS + Android.",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -46,11 +46,11 @@
   "author": "Filip Mokrzycki",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Filipmok-agh/react-native-one-hand.git"
+    "url": "git+https://github.com/filip-mok/react-native-one-hand.git"
   },
-  "homepage": "https://github.com/Filipmok-agh/react-native-one-hand#readme",
+  "homepage": "https://github.com/filip-mok/react-native-one-hand#readme",
   "bugs": {
-    "url": "https://github.com/Filipmok-agh/react-native-one-hand/issues"
+    "url": "https://github.com/filip-mok/react-native-one-hand/issues"
   },
   "peerDependencies": {
     "expo": ">=55.0.0",
